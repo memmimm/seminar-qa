@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>질문하기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f5f8;
+  --surface: #ffffff;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.14);
+  --text: #111118;
+  --text-muted: #777788;
+  --text-faint: #c0c0cc;
+  --accent: #4361ee;
+  --accent-light: #eef0ff;
+  --success: #38a169;
+  --success-light: #f0fff4;
+  --font-kr: 'Noto Sans KR', sans-serif;
+}
+html, body { min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-kr); -webkit-font-smoothing: antialiased; }
+
+#app { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding-bottom: 3rem; }
+
+/* 헤더 */
+header {
+  width: 100%; background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 1.25rem 1.5rem; text-align: center;
+  position: sticky; top: 0; z-index: 10;
+}
+.header-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent-light); color: var(--accent);
+  font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 99px; margin-bottom: 6px;
+}
+.live-dot-sm { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 2s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.4px; color: var(--text); }
+
+main { width: 100%; max-width: 480px; padding: 1.25rem 1.25rem 0; display: flex; flex-direction: column; gap: 1rem; }
+
+/* 질문 입력 카드 */
+.input-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 1.25rem;
+  display: flex; flex-direction: column; gap: 0.75rem;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.05);
+}
+.input-card textarea {
+  width: 100%; min-height: 100px; resize: none;
+  border: 1px solid var(--border2); border-radius: 14px;
+  padding: 14px 16px; font-size: 16px; font-family: var(--font-kr);
+  color: var(--text); background: var(--bg);
+  outline: none; line-height: 1.6;
+  transition: border-color .2s, box-shadow .2s;
+  -webkit-appearance: none;
+}
+.input-card textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(67,97,238,0.12);
+  background: #fff;
+}
+.input-card textarea::placeholder { color: var(--text-faint); }
+.char-count { text-align: right; font-size: 12px; color: var(--text-faint); }
+.char-count.warn { color: #e53e3e; }
+.btn-submit {
+  width: 100%; padding: 15px;
+  background: var(--accent); color: #fff;
+  font-family: var(--font-kr); font-size: 16px; font-weight: 700;
+  border: none; border-radius: 14px; cursor: pointer; letter-spacing: -0.2px;
+  transition: opacity .15s, transform .1s;
+  box-shadow: 0 4px 20px rgba(67,97,238,0.28);
+}
+.btn-submit:hover { opacity: 0.9; }
+.btn-submit:active { transform: scale(0.98); }
+.btn-submit:disabled { background: var(--text-faint); box-shadow: none; cursor: not-allowed; transform: none; }
+
+/* 완료 메시지 */
+#successMsg {
+  display: none; align-items: center; gap: 10px;
+  background: var(--success-light); border: 1px solid rgba(56,161,105,0.25);
+  border-radius: 14px; padding: 1rem 1.25rem;
+  font-size: 15px; font-weight: 500; color: var(--success);
+  animation: fadeIn .3s ease;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+
+/* 질문 목록 섹션 */
+.qs-section { display: flex; flex-direction: column; gap: 0.75rem; }
+.section-label { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
+
+/* 질문 카드 */
+.q-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 1rem 1.25rem;
+  display: flex; flex-direction: column; gap: 0.75rem;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+  animation: fadeIn .35s ease;
+}
+.q-card-meta { display: flex; align-items: center; justify-content: space-between; }
+.q-card-num { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .06em; }
+.q-card-time { font-size: 11px; color: var(--text-faint); }
+.q-card-text {
+  font-size: 15px; line-height: 1.6; color: var(--text);
+  word-break: keep-all; overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* 이모지 반응 버튼 행 */
+.emoji-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.emoji-btn {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 12px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 99px; cursor: pointer; font-size: 16px;
+  font-family: var(--font-kr);
+  transition: background .15s, border-color .15s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.emoji-btn:active { transform: scale(0.88); }
+.emoji-btn.reacted {
+  background: var(--accent-light);
+  border-color: rgba(67,97,238,0.35);
+}
+.emoji-btn .e-cnt { font-size: 13px; font-weight: 700; color: var(--text-muted); line-height: 1; }
+.emoji-btn.reacted .e-cnt { color: var(--accent); }
+
+/* 로딩 */
+#loadingMsg { text-align: center; font-size: 14px; color: var(--text-faint); padding: 2rem 0; }
+
+/* Firebase 설정 오버레이 */
+#configOverlay {
+  position: fixed; inset: 0; background: rgba(245,245,248,0.97);
+  z-index: 500; display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+}
+.config-box {
+  width: 100%; max-width: 420px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 2rem;
+  display: flex; flex-direction: column; gap: 1.1rem;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+}
+.config-box h2 { font-size: 20px; font-weight: 700; color: var(--text); }
+.config-box p { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+.config-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.config-box input {
+  background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 11px 13px;
+  font-size: 13px; font-family: monospace; color: var(--accent);
+  outline: none; width: 100%; transition: border-color .2s;
+}
+.config-box input:focus { border-color: var(--accent); }
+.config-box input::placeholder { color: var(--text-faint); font-family: var(--font-kr); }
+.btn-connect {
+  padding: 13px; background: var(--accent); color: #fff;
+  font-family: var(--font-kr); font-size: 15px; font-weight: 700;
+  border: none; border-radius: 12px; cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- Firebase 설정 오버레이: URL 파라미터 없을 때만 표시 -->
+<div id="configOverlay" style="display:none">
+  <div class="config-box">
+    <h2>🔧 Firebase 연결</h2>
+    <p>발표자에게 받은 설정값을 입력하세요.<br>입력 후 URL을 QR코드로 만들어 청중과 공유하세요.</p>
+    <div>
+      <div class="config-label">API Key</div>
+      <input type="text" id="cfg-apiKey" placeholder="AIzaSy..." />
+    </div>
+    <div>
+      <div class="config-label">Project ID</div>
+      <input type="text" id="cfg-projectId" placeholder="my-seminar-app" />
+    </div>
+    <div>
+      <div class="config-label">Database URL</div>
+      <input type="text" id="cfg-dbUrl" placeholder="https://...firebaseio.com" />
+    </div>
+    <button class="btn-connect" onclick="connectFromForm()">연결 및 URL 생성</button>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="header-badge">
+      <div class="live-dot-sm"></div>
+      Live Q&A
+    </div>
+    <h1>질문을 남겨주세요</h1>
+  </header>
+
+  <main>
+    <!-- 질문 입력 -->
+    <div class="input-card">
+      <textarea id="qText" placeholder="궁금한 점을 자유롭게 입력해주세요&#10;(Shift+Enter로 전송)" maxlength="200" oninput="onInput()" onkeydown="onKeyDown(event)"></textarea>
+      <div class="char-count" id="charCount">0 / 200</div>
+      <button class="btn-submit" id="submitBtn" onclick="submitQ()" disabled>질문 보내기</button>
+    </div>
+
+    <!-- 전송 완료 메시지 -->
+    <div id="successMsg">
+      <span>✅</span><span>질문이 전송되었습니다!</span>
+    </div>
+
+    <!-- 전체 질문 목록 -->
+    <div class="qs-section">
+      <div class="section-label">전체 질문</div>
+      <div id="loadingMsg">연결 중...</div>
+      <div id="qList"></div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getDatabase, ref, push, runTransaction, onChildAdded, onChildChanged }
+    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+  const EMOJIS = ['👍','👏','🔥','❤️','😮'];
+  let db = null;
+  let qCount = 0;
+  const cardKeys = []; // 순서 추적용
+
+  // ── URL 파라미터에서 config 읽기 ──
+  function getConfigFromURL() {
+    const p = new URLSearchParams(location.search);
+    const apiKey = p.get('ak');
+    const projectId = p.get('pid');
+    const databaseURL = p.get('db');
+    if (apiKey && projectId && databaseURL) return { apiKey, projectId, databaseURL };
+    return null;
+  }
+
+  function buildURL(apiKey, projectId, databaseURL) {
+    const base = location.origin + location.pathname;
+    return `${base}?ak=${encodeURIComponent(apiKey)}&pid=${encodeURIComponent(projectId)}&db=${encodeURIComponent(databaseURL)}`;
+  }
+
+  function initFirebase(cfg) {
+    const config = {
+      apiKey: cfg.apiKey,
+      projectId: cfg.projectId,
+      databaseURL: cfg.databaseURL,
+      authDomain: `${cfg.projectId}.firebaseapp.com`,
+      storageBucket: `${cfg.projectId}.appspot.com`,
+      messagingSenderId: '000000000000',
+      appId: '1:000000000000:web:000000000000000000000000'
+    };
+    const app = initializeApp(config);
+    db = getDatabase(app);
+    startListening();
+  }
+
+  // 폼에서 연결 (발표자 최초 설정 시)
+  window.connectFromForm = function() {
+    const apiKey = document.getElementById('cfg-apiKey').value.trim();
+    const projectId = document.getElementById('cfg-projectId').value.trim();
+    const databaseURL = document.getElementById('cfg-dbUrl').value.trim();
+    if (!apiKey || !projectId || !databaseURL) { alert('모든 항목을 입력해주세요.'); return; }
+
+    // URL에 파라미터 포함시켜서 이동 (청중은 이 URL을 QR로 공유)
+    const url = buildURL(apiKey, projectId, databaseURL);
+    location.href = url;
+  };
+
+  // ── 시작 ──
+  const cfg = getConfigFromURL();
+  if (cfg) {
+    try {
+      initFirebase(cfg);
+    } catch(e) {
+      document.getElementById('loadingMsg').textContent = '연결 실패: ' + e.message;
+    }
+  } else {
+    // URL 파라미터 없으면 설정 폼 표시
+    document.getElementById('configOverlay').style.display = 'flex';
+    document.getElementById('loadingMsg').textContent = 'Firebase 설정이 필요합니다.';
+  }
+
+  function startListening() {
+    document.getElementById('loadingMsg').style.display = 'none';
+    const qRef = ref(db, 'questions');
+
+    onChildAdded(qRef, snap => {
+      const data = snap.val();
+      if (!data) return;
+      qCount++;
+      cardKeys.push(snap.key);
+      addCard(snap.key, data, qCount);
+    });
+
+    onChildChanged(qRef, snap => {
+      const data = snap.val();
+      if (!data) return;
+      updateCard(snap.key, data);
+    });
+  }
+
+  // ── 질문 제출 ──
+  window.onInput = function() {
+    const val = document.getElementById('qText').value;
+    const len = val.length;
+    const cc = document.getElementById('charCount');
+    cc.textContent = `${len} / 200`;
+    cc.className = 'char-count' + (len > 180 ? ' warn' : '');
+    document.getElementById('submitBtn').disabled = len === 0;
+  };
+
+  // Enter: 줄바꿈 (기본 동작) / Shift+Enter: 전송
+  window.onKeyDown = function(e) {
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      if (!btn.disabled) submitQ();
+    }
+  };
+
+  window.submitQ = async function() {
+    if (!db) return;
+    const text = document.getElementById('qText').value.trim();
+    if (!text) return;
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = '전송 중...';
+    try {
+      const reactions = Object.fromEntries(EMOJIS.map(e => [e, 0]));
+      await push(ref(db, 'questions'), { text, createdAt: Date.now(), reactions });
+      document.getElementById('qText').value = '';
+      document.getElementById('charCount').textContent = '0 / 200';
+      btn.textContent = '질문 보내기';
+      const sm = document.getElementById('successMsg');
+      sm.style.display = 'flex';
+      setTimeout(() => { sm.style.display = 'none'; }, 3000);
+    } catch(e) {
+      alert('전송 실패: ' + e.message);
+      btn.disabled = false; btn.textContent = '질문 보내기';
+    }
+  };
+
+  // ── 이모지 반응: 해당 질문의 해당 이모지 카운트만 +1 ──
+  window.sendReaction = async function(qKey, emoji, btnEl) {
+    if (!db) return;
+    btnEl.disabled = true;
+    btnEl.classList.add('reacted');
+    try {
+      // runTransaction으로 정확한 카운트 보장
+      const emojiRef = ref(db, `questions/${qKey}/reactions/${emoji}`);
+      await runTransaction(emojiRef, current => (current || 0) + 1);
+    } catch(e) {
+      console.error(e);
+      btnEl.disabled = false;
+    }
+  };
+
+  // ── 카드 추가 ──
+  function addCard(key, data, num) {
+    const list = document.getElementById('qList');
+    const card = document.createElement('div');
+    card.className = 'q-card';
+    card.id = 'aud-card-' + key;
+    card.innerHTML = buildCardHTML(key, num, data);
+    list.prepend(card); // 최신이 위로
+  }
+
+  function updateCard(key, data) {
+    const card = document.getElementById('aud-card-' + key);
+    if (!card) return;
+    const row = card.querySelector('.emoji-row');
+    if (row) row.innerHTML = buildEmojiRowHTML(key, data.reactions || {});
+  }
+
+  function buildCardHTML(key, num, data) {
+    const t = new Date(data.createdAt || Date.now());
+    const time = t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0');
+    return `
+      <div class="q-card-meta">
+        <div class="q-card-num">Q${num}</div>
+        <div class="q-card-time">${time}</div>
+      </div>
+      <div class="q-card-text">${escHtml(data.text || '')}</div>
+      <div class="emoji-row">${buildEmojiRowHTML(key, data.reactions || {})}</div>
+    `;
+  }
+
+  function buildEmojiRowHTML(key, reactions) {
+    return EMOJIS.map(e => {
+      const cnt = reactions[e] || 0;
+      return `<button class="emoji-btn" onclick="sendReaction('${key}','${e}',this)">
+        <span>${e}</span><span class="e-cnt">${cnt}</span>
+      </button>`;
+    }).join('');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
