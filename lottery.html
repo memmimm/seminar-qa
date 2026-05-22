@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>번호 추첨</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131c;
+    --surface2: #1c1c2a;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --accent: #7c6ff7;
+    --accent-light: #a89fff;
+    --accent-dim: rgba(124,111,247,0.18);
+    --text: #f0f0f8;
+    --text-muted: #8888a8;
+    --text-faint: #44445a;
+    --gold: #f5c842;
+    --gold-dim: rgba(245,200,66,0.15);
+    --font-kr: 'Noto Sans KR', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-kr);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── 배경 노이즈 패턴 ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(124,111,247,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 80% 90%, rgba(124,111,247,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ══════════════════════════════
+     설정 패널
+  ══════════════════════════════ */
+  #setup {
+    width: 100%;
+    max-width: 520px;
+    padding: 2rem 1.5rem;
+  }
+
+  .setup-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  .setup-header .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(124,111,247,0.3);
+    font-size: 26px;
+    margin-bottom: 1rem;
+  }
+  .setup-header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  .setup-header p {
+    margin-top: 6px;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .setup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .field label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .field input {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 16px;
+    font-family: var(--font-kr);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  .field input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124,111,247,0.15);
+  }
+  .field input::placeholder { color: var(--text-faint); }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0.25rem 0;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--font-kr);
+    font-size: 17px;
+    font-weight: 700;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    letter-spacing: -0.2px;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 4px 24px rgba(124,111,247,0.3);
+  }
+  .btn-primary:hover {
+    background: var(--accent-light);
+    box-shadow: 0 6px 32px rgba(124,111,247,0.45);
+  }
+  .btn-primary:active { transform: scale(0.985); }
+
+  /* ══════════════════════════════
+     추첨 화면
+  ══════════════════════════════ */
+  #draw {
+    display: none;
+    width: 100%;
+    min-height: 100vh;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+    gap: 0;
+    position: relative;
+  }
+
+  .draw-top {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 2rem;
+    background: rgba(10,10,15,0.7);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+  }
+  .draw-top-title {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+  .draw-top-meta {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .btn-settings {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-kr);
+    font-size: 13px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-settings:hover { color: var(--text); border-color: var(--border2); }
+
+  .draw-main {
+    margin-top: 80px;
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3rem;
+  }
+
+  .main-title {
+    font-size: clamp(32px, 5.5vw, 62px);
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  /* 롤링 숫자 */
+  .rolling-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    min-height: 220px;
+    justify-content: center;
+  }
+  .rolling-label {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent-light);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .rolling-label.show { opacity: 1; }
+
+  #rollingNum {
+    font-family: var(--font-mono);
+    font-size: clamp(90px, 18vw, 180px);
+    font-weight: 500;
+    color: var(--accent-light);
+    letter-spacing: -6px;
+    line-height: 1;
+    text-shadow: 0 0 60px rgba(124,111,247,0.5);
+    min-width: 4ch;
+    text-align: center;
+    transition: none;
+    opacity: 0;
+  }
+  #rollingNum.show { opacity: 1; }
+  #rollingNum.land {
+    color: var(--gold);
+    text-shadow: 0 0 80px rgba(245,200,66,0.6);
+    animation: landPop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  }
+  @keyframes landPop {
+    0% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+
+  /* 당첨 번호 목록 */
+  .balls-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .balls-section-label {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  #ballsGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    align-items: center;
+    max-width: 820px;
+  }
+
+  .ball {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    background: var(--gold-dim);
+    border: 2px solid var(--gold);
+    color: var(--gold);
+    opacity: 0;
+    transform: scale(0.4) rotate(-20deg);
+    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    flex-shrink: 0;
+  }
+  .ball.pop {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  /* 크기 자동 조정 */
+  .ball.sz-lg { width: 110px; height: 110px; font-size: 40px; }
+  .ball.sz-md { width: 88px; height: 88px; font-size: 30px; }
+  .ball.sz-sm { width: 72px; height: 72px; font-size: 24px; }
+  .ball.sz-xs { width: 58px; height: 58px; font-size: 18px; }
+
+  /* 진행 정보 */
+  .progress-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  #progressText {
+    font-size: 16px;
+    color: var(--text-muted);
+  }
+  #progressText strong { color: var(--accent-light); font-weight: 700; }
+
+  .progress-bar-track {
+    width: 260px;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  #progressBar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    border-radius: 99px;
+    width: 0%;
+    transition: width 0.5s ease;
+  }
+
+  /* 완료 메시지 */
+  #doneMsg {
+    display: none;
+    padding: 16px 40px;
+    background: var(--gold-dim);
+    border: 1px solid rgba(245,200,66,0.4);
+    border-radius: 14px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: -0.3px;
+    animation: fadeUp 0.5s ease forwards;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 추첨 버튼 */
+  .btn-draw-wrap {
+    padding-bottom: 2rem;
+  }
+  #drawBtn {
+    padding: 22px 72px;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--font-kr);
+    font-size: 20px;
+    font-weight: 700;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    letter-spacing: -0.3px;
+    box-shadow: 0 6px 36px rgba(124,111,247,0.4);
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  }
+  #drawBtn:hover {
+    background: var(--accent-light);
+    box-shadow: 0 8px 44px rgba(124,111,247,0.55);
+  }
+  #drawBtn:active { transform: scale(0.97); }
+  #drawBtn:disabled {
+    background: var(--surface2);
+    color: var(--text-faint);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* 반응형 */
+  @media (max-width: 600px) {
+    .draw-main { gap: 2rem; }
+    #drawBtn { padding: 18px 48px; font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── 설정 화면 ── -->
+  <div id="setup">
+    <div class="setup-header">
+      <div class="icon">🎰</div>
+      <h1>번호 추첨 프로그램</h1>
+      <p>아래 항목을 설정하고 추첨을 시작하세요</p>
+    </div>
+    <div class="setup-card">
+      <div class="field">
+        <label>화면 제목</label>
+        <input type="text" id="titleInput" placeholder="예) 2024 하반기 세미나 경품 추첨" value="경품 추첨" />
+      </div>
+      <div class="divider"></div>
+      <div class="field-row">
+        <div class="field">
+          <label>전체 번호 수</label>
+          <input type="number" id="totalInput" min="1" max="9999" value="100" placeholder="100" />
+        </div>
+        <div class="field">
+          <label>추첨할 번호 수</label>
+          <input type="number" id="countInput" min="1" max="9999" value="5" placeholder="5" />
+        </div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn-primary" onclick="startDraw()">추첨 시작 →</button>
+    </div>
+  </div>
+
+  <!-- ── 추첨 화면 ── -->
+  <div id="draw">
+    <div class="draw-top">
+      <div>
+        <div class="draw-top-title" id="topTitle">경품 추첨</div>
+        <div class="draw-top-meta" id="topMeta">1번 ~ 100번 · 5개 추첨</div>
+      </div>
+      <button class="btn-settings" onclick="resetToSetup()">⚙ 설정</button>
+    </div>
+
+    <div class="draw-main">
+      <div class="main-title" id="mainTitle">경품 추첨</div>
+
+      <!-- 롤링 영역 -->
+      <div class="rolling-wrap">
+        <div class="rolling-label" id="rollingLabel">추첨 중...</div>
+        <div id="rollingNum">--</div>
+      </div>
+
+      <!-- 당첨 번호 공 -->
+      <div class="balls-section" id="ballsSection" style="display:none">
+        <div class="balls-section-label">당첨 번호</div>
+        <div id="ballsGrid"></div>
+      </div>
+
+      <!-- 진행 상태 -->
+      <div class="progress-area">
+        <div id="progressText"></div>
+        <div class="progress-bar-track">
+          <div id="progressBar"></div>
+        </div>
+      </div>
+
+      <!-- 완료 메시지 -->
+      <div id="doneMsg">🎉 모든 추첨이 완료되었습니다!</div>
+
+      <!-- 추첨 버튼 -->
+      <div class="btn-draw-wrap">
+        <button id="drawBtn" onclick="drawNext()">추첨하기</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let totalN, drawCount, drawn, remaining, isRolling, currentIdx, rollTimer;
+
+  function startDraw() {
+    const title = document.getElementById('titleInput').value.trim() || '경품 추첨';
+    totalN = parseInt(document.getElementById('totalInput').value) || 100;
+    drawCount = parseInt(document.getElementById('countInput').value) || 5;
+
+    if (isNaN(totalN) || totalN < 1) { alert('전체 번호 수를 올바르게 입력해주세요.'); return; }
+    if (isNaN(drawCount) || drawCount < 1) { alert('추첨할 번호 수를 올바르게 입력해주세요.'); return; }
+    if (drawCount > totalN) { alert('추첨할 번호 수가 전체 번호 수를 초과할 수 없습니다.'); return; }
+
+    drawn = []; remaining = Array.from({length: totalN}, (_, i) => i + 1);
+    isRolling = false; currentIdx = 0;
+
+    document.getElementById('topTitle').textContent = title;
+    document.getElementById('mainTitle').textContent = title;
+    document.getElementById('topMeta').textContent = `1번 ~ ${totalN}번 · ${drawCount}개 추첨`;
+    document.getElementById('ballsGrid').innerHTML = '';
+    document.getElementById('ballsSection').style.display = 'none';
+    document.getElementById('doneMsg').style.display = 'none';
+    document.getElementById('rollingNum').className = '';
+    document.getElementById('rollingNum').textContent = '--';
+    document.getElementById('rollingLabel').className = 'rolling-label';
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').innerHTML = '';
+    document.getElementById('drawBtn').disabled = false;
+    document.getElementById('drawBtn').textContent = '추첨하기';
+
+    document.getElementById('setup').style.display = 'none';
+    document.getElementById('draw').style.display = 'flex';
+  }
+
+  function drawNext() {
+    if (isRolling || currentIdx >= drawCount) return;
+    isRolling = true;
+    document.getElementById('drawBtn').disabled = true;
+
+    const rollingEl = document.getElementById('rollingNum');
+    const labelEl = document.getElementById('rollingLabel');
+    rollingEl.className = 'show';
+    labelEl.className = 'rolling-label show';
+
+    const padLen = String(totalN).length;
+    let elapsed = 0;
+    const duration = 2000;
+    let interval = 55;
+
+    function tick() {
+      const r = remaining[Math.floor(Math.random() * remaining.length)];
+      rollingEl.textContent = String(r).padStart(padLen, '0');
+      elapsed += interval;
+
+      if (elapsed < duration) {
+        interval = 55 + Math.floor((elapsed / duration) * 80);
+        rollTimer = setTimeout(tick, interval);
+      } else {
+        finalizeDraw(padLen);
+      }
+    }
+    tick();
+  }
+
+  function finalizeDraw(padLen) {
+    const idx = Math.floor(Math.random() * remaining.length);
+    const winner = remaining.splice(idx, 1)[0];
+    drawn.push(winner);
+    currentIdx++;
+
+    const rollingEl = document.getElementById('rollingNum');
+    const labelEl = document.getElementById('rollingLabel');
+
+    rollingEl.textContent = String(winner).padStart(padLen, '0');
+    rollingEl.className = 'show land';
+    labelEl.className = 'rolling-label show';
+    labelEl.textContent = '당첨!';
+
+    setTimeout(() => {
+      rollingEl.className = '';
+      rollingEl.textContent = '--';
+      labelEl.className = 'rolling-label';
+      labelEl.textContent = '추첨 중...';
+      addBall(winner);
+
+      const pct = (currentIdx / drawCount) * 100;
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressText').innerHTML =
+        `<strong>${currentIdx}</strong> / ${drawCount} 추첨 완료`;
+
+      isRolling = false;
+
+      if (currentIdx >= drawCount) {
+        document.getElementById('doneMsg').style.display = 'block';
+        document.getElementById('drawBtn').disabled = true;
+        document.getElementById('drawBtn').textContent = '추첨 완료';
+      } else {
+        document.getElementById('drawBtn').disabled = false;
+      }
+    }, 700);
+  }
+
+  function addBall(num) {
+    const section = document.getElementById('ballsSection');
+    const grid = document.getElementById('ballsGrid');
+    section.style.display = 'flex';
+
+    const sz = drawCount <= 5 ? 'sz-lg' : drawCount <= 10 ? 'sz-md' : drawCount <= 20 ? 'sz-sm' : 'sz-xs';
+    const ball = document.createElement('div');
+    ball.className = `ball ${sz}`;
+    ball.textContent = num;
+    grid.appendChild(ball);
+
+    requestAnimationFrame(() => requestAnimationFrame(() => ball.classList.add('pop')));
+  }
+
+  function resetToSetup() {
+    if (rollTimer) clearTimeout(rollTimer);
+    isRolling = false;
+    document.getElementById('draw').style.display = 'none';
+    document.getElementById('setup').style.display = 'flex';
+  }
+</script>
+</body>
+</html>
